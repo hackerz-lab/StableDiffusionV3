@@ -1,0 +1,1 @@
+pip install torch torchvision diffusers transformers git+https://github.com/huggingface/diffusers.git

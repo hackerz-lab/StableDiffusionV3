@@ -1,94 +1,84 @@
-import torch
-from diffusers import StableDiffusionPipeline
-from PIL import Image
+import requests
 import os
+import sys
+from time import sleep
 
-# ASCII Art for "sd3"
-ascii_art = '''
- 
-█████████████████████████████████████████████████████████████████████████████████████████████
-█░░░░░░░░░░░░░░█░░░░░░░░░░░░░░█░░░░░░░░░░░░░░█░░░░░░░░░░░░░░███░░░░░░█████████░░░░░░░░░░░░░░█
-█░░▄▀▄▀▄▀▄▀▄▀░░█░░▄▀▄▀▄▀▄▀▄▀░░█░░▄▀▄▀▄▀▄▀▄▀░░█░░▄▀▄▀▄▀▄▀▄▀░░███░░▄▀░░█████████░░▄▀▄▀▄▀▄▀▄▀░░█
-█░░▄▀░░░░░░░░░░█░░░░░░▄▀░░░░░░█░░▄▀░░░░░░▄▀░░█░░▄▀░░░░░░▄▀░░███░░▄▀░░█████████░░▄▀░░░░░░░░░░█
-█░░▄▀░░█████████████░░▄▀░░█████░░▄▀░░██░░▄▀░░█░░▄▀░░██░░▄▀░░███░░▄▀░░█████████░░▄▀░░█████████
-█░░▄▀░░░░░░░░░░█████░░▄▀░░█████░░▄▀░░░░░░▄▀░░█░░▄▀░░░░░░▄▀░░░░█░░▄▀░░█████████░░▄▀░░░░░░░░░░█
-█░░▄▀▄▀▄▀▄▀▄▀░░█████░░▄▀░░█████░░▄▀▄▀▄▀▄▀▄▀░░█░░▄▀▄▀▄▀▄▀▄▀▄▀░░█░░▄▀░░█████████░░▄▀▄▀▄▀▄▀▄▀░░█
-█░░░░░░░░░░▄▀░░█████░░▄▀░░█████░░▄▀░░░░░░▄▀░░█░░▄▀░░░░░░░░▄▀░░█░░▄▀░░█████████░░▄▀░░░░░░░░░░█
-█████████░░▄▀░░█████░░▄▀░░█████░░▄▀░░██░░▄▀░░█░░▄▀░░████░░▄▀░░█░░▄▀░░█████████░░▄▀░░█████████
-█░░░░░░░░░░▄▀░░█████░░▄▀░░█████░░▄▀░░██░░▄▀░░█░░▄▀░░░░░░░░▄▀░░█░░▄▀░░░░░░░░░░█░░▄▀░░░░░░░░░░█
-█░░▄▀▄▀▄▀▄▀▄▀░░█████░░▄▀░░█████░░▄▀░░██░░▄▀░░█░░▄▀▄▀▄▀▄▀▄▀▄▀░░█░░▄▀▄▀▄▀▄▀▄▀░░█░░▄▀▄▀▄▀▄▀▄▀░░█
-█░░░░░░░░░░░░░░█████░░░░░░█████░░░░░░██░░░░░░█░░░░░░░░░░░░░░░░█░░░░░░░░░░░░░░█░░░░░░░░░░░░░░█
-█████████████████████████████████████████████████████████████████████████████████████████████
-████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
-█░░░░░░░░░░░░███░░░░░░░░░░█░░░░░░░░░░░░░░█░░░░░░░░░░░░░░█░░░░░░██░░░░░░█░░░░░░░░░░░░░░█░░░░░░░░░░█░░░░░░░░░░░░░░█░░░░░░██████████░░░░░░█
-█░░▄▀▄▀▄▀▄▀░░░░█░░▄▀▄▀▄▀░░█░░▄▀▄▀▄▀▄▀▄▀░░█░░▄▀▄▀▄▀▄▀▄▀░░█░░▄▀░░██░░▄▀░░█░░▄▀▄▀▄▀▄▀▄▀░░█░░▄▀▄▀▄▀░░█░░▄▀▄▀▄▀▄▀▄▀░░█░░▄▀░░░░░░░░░░██░░▄▀░░█
-█░░▄▀░░░░▄▀▄▀░░█░░░░▄▀░░░░█░░▄▀░░░░░░░░░░█░░▄▀░░░░░░░░░░█░░▄▀░░██░░▄▀░░█░░▄▀░░░░░░░░░░█░░░░▄▀░░░░█░░▄▀░░░░░░▄▀░░█░░▄▀▄▀▄▀▄▀▄▀░░██░░▄▀░░█
-█░░▄▀░░██░░▄▀░░███░░▄▀░░███░░▄▀░░█████████░░▄▀░░█████████░░▄▀░░██░░▄▀░░█░░▄▀░░███████████░░▄▀░░███░░▄▀░░██░░▄▀░░█░░▄▀░░░░░░▄▀░░██░░▄▀░░█
-█░░▄▀░░██░░▄▀░░███░░▄▀░░███░░▄▀░░░░░░░░░░█░░▄▀░░░░░░░░░░█░░▄▀░░██░░▄▀░░█░░▄▀░░░░░░░░░░███░░▄▀░░███░░▄▀░░██░░▄▀░░█░░▄▀░░██░░▄▀░░██░░▄▀░░█
-█░░▄▀░░██░░▄▀░░███░░▄▀░░███░░▄▀▄▀▄▀▄▀▄▀░░█░░▄▀▄▀▄▀▄▀▄▀░░█░░▄▀░░██░░▄▀░░█░░▄▀▄▀▄▀▄▀▄▀░░███░░▄▀░░███░░▄▀░░██░░▄▀░░█░░▄▀░░██░░▄▀░░██░░▄▀░░█
-█░░▄▀░░██░░▄▀░░███░░▄▀░░███░░▄▀░░░░░░░░░░█░░▄▀░░░░░░░░░░█░░▄▀░░██░░▄▀░░█░░░░░░░░░░▄▀░░███░░▄▀░░███░░▄▀░░██░░▄▀░░█░░▄▀░░██░░▄▀░░██░░▄▀░░█
-█░░▄▀░░██░░▄▀░░███░░▄▀░░███░░▄▀░░█████████░░▄▀░░█████████░░▄▀░░██░░▄▀░░█████████░░▄▀░░███░░▄▀░░███░░▄▀░░██░░▄▀░░█░░▄▀░░██░░▄▀░░░░░░▄▀░░█
-█░░▄▀░░░░▄▀▄▀░░█░░░░▄▀░░░░█░░▄▀░░█████████░░▄▀░░█████████░░▄▀░░░░░░▄▀░░█░░░░░░░░░░▄▀░░█░░░░▄▀░░░░█░░▄▀░░░░░░▄▀░░█░░▄▀░░██░░▄▀▄▀▄▀▄▀▄▀░░█
-█░░▄▀▄▀▄▀▄▀░░░░█░░▄▀▄▀▄▀░░█░░▄▀░░█████████░░▄▀░░█████████░░▄▀▄▀▄▀▄▀▄▀░░█░░▄▀▄▀▄▀▄▀▄▀░░█░░▄▀▄▀▄▀░░█░░▄▀▄▀▄▀▄▀▄▀░░█░░▄▀░░██░░░░░░░░░░▄▀░░█
-█░░░░░░░░░░░░███░░░░░░░░░░█░░░░░░█████████░░░░░░█████████░░░░░░░░░░░░░░█░░░░░░░░░░░░░░█░░░░░░░░░░█░░░░░░░░░░░░░░█░░░░░░██████████░░░░░░█
-████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
-███████████████████████████████
-█░░░░░░██░░░░░░█░░░░░░░░░░░░░░█
-█░░▄▀░░██░░▄▀░░█░░▄▀▄▀▄▀▄▀▄▀░░█
-█░░▄▀░░██░░▄▀░░█░░░░░░░░░░▄▀░░█
-█░░▄▀░░██░░▄▀░░█████████░░▄▀░░█
-█░░▄▀░░██░░▄▀░░█░░░░░░░░░░▄▀░░█
-█░░▄▀░░██░░▄▀░░█░░▄▀▄▀▄▀▄▀▄▀░░█
-█░░▄▀░░██░░▄▀░░█░░░░░░░░░░▄▀░░█
-█░░▄▀▄▀░░▄▀▄▀░░█████████░░▄▀░░█
-█░░░░▄▀▄▀▄▀░░░░█░░░░░░░░░░▄▀░░█
-███░░░░▄▀░░░░███░░▄▀▄▀▄▀▄▀▄▀░░█
-█████░░░░░░█████░░░░░░░░░░░░░░█
-███████████████████████████████ 
-'''
+API_URL = "https://api-inference.huggingface.co/models/CompVis/stable-diffusion-v1-4"
+API_TOKEN = "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"
 
-# Function to generate the image
-def generate_image(prompt, output_path='generated_image.png'):
-    # Load the Stable Diffusion model (make sure you have GPU support or use CPU fallback)
-    model = StableDiffusionPipeline.from_pretrained("CompVis/stable-diffusion-v1-4", torch_dtype=torch.float16)
-    model.to("cuda" if torch.cuda.is_available() else "cpu")
-    
-    # Generate the image
-    image = model(prompt).images[0]
-    
-    # Save the generated image
-    image.save(output_path)
-    print(f"Image saved to {output_path}")
+def generate_image(prompt, output_dir="output"):
+    headers = {"Authorization": f"Bearer {API_TOKEN}"}
+    payload = {"inputs": prompt}
 
-# Function to save metadata and instructions
-def save_metadata():
-    metadata = f"""
-    AI Tool: Advanced Text to Image Generator
-    Author: Marttin Saji
-    Contact: Martinsaji26@gmail.com
-    GitHub: https://github.com/marttinsaji/ai-text-to-image
+    # Make API request
+    print("[*] Generating image... This may take a moment.")
+    response = requests.post(API_URL, headers=headers, json=payload)
+
+    if response.status_code == 200:
+        print("[+] Image generated successfully!")
+        save_image(response.content, prompt, output_dir)
+    else:
+        print(f"[!] Failed to generate image: {response.status_code} - {response.text}")
+
+def save_image(image_content, prompt, output_dir):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    file_name = f"{prompt.replace(' ', '_')[:50]}.png"
+    file_path = os.path.join(output_dir, file_name)
     
-    Instructions:
-    1. Install dependencies via `pip install -r requirements.txt`.
-    2. Run the script with the desired text prompt.
-    3. The generated image will be saved as 'generated_image.png'.
+    with open(file_path, "wb") as img_file:
+        img_file.write(image_content)
+    
+    print(f"[+] Image saved to {file_path}")
+
+def main():
+    print_ascii_art()
+    print("=== Advanced Ai Text To Image Generation ===")
+    print("[INFO] Powered by Stable Diffusion AI")
+    print("Developed by: Marttin Saji")
+    print("Contact: martinsaji26@gmail.com | UAE Phone: +971")
+
+    while True:
+        prompt = input("\nEnter a text prompt (or type 'exit' to quit): ").strip()
+        if prompt.lower() == 'exit':
+            print("[*] Exiting the program.")
+            break
+        
+        generate_image(prompt)
+
+def print_ascii_art():
+    ascii_art = r"""
+      
+░██████╗████████╗░█████╗░██████╗░██╗░░░░░███████╗
+██╔════╝╚══██╔══╝██╔══██╗██╔══██╗██║░░░░░██╔════╝
+╚█████╗░░░░██║░░░███████║██████╦╝██║░░░░░█████╗░░
+░╚═══██╗░░░██║░░░██╔══██║██╔══██╗██║░░░░░██╔══╝░░
+██████╔╝░░░██║░░░██║░░██║██████╦╝███████╗███████╗
+╚═════╝░░░░╚═╝░░░╚═╝░░╚═╝╚═════╝░╚══════╝╚══════╝
+
+██████╗░██╗███████╗███████╗██╗░░░██╗░██████╗██╗░█████╗░███╗░░██╗
+██╔══██╗██║██╔════╝██╔════╝██║░░░██║██╔════╝██║██╔══██╗████╗░██║
+██║░░██║██║█████╗░░█████╗░░██║░░░██║╚█████╗░██║██║░░██║██╔██╗██║
+██║░░██║██║██╔══╝░░██╔══╝░░██║░░░██║░╚═══██╗██║██║░░██║██║╚████║
+██████╔╝██║██║░░░░░██║░░░░░╚██████╔╝██████╔╝██║╚█████╔╝██║░╚███║
+╚═════╝░╚═╝╚═╝░░░░░╚═╝░░░░░░╚═════╝░╚═════╝░╚═╝░╚════╝░╚═╝░░╚══╝
+
+██╗░░░██╗██████╗░
+██║░░░██║╚════██╗
+╚██╗░██╔╝░█████╔╝
+░╚████╔╝░░╚═══██╗
+░░╚██╔╝░░██████╔╝
+░░░╚═╝░░░╚═════╝░
     """
-    
-    with open("README.txt", "w") as file:
-        file.write(metadata)
-    print("Metadata and instructions saved to README.txt")
-
-# Main execution flow
-if __name__ == "__main__":
-    print("ASCII Art:")
     print(ascii_art)
-    
-    # Save metadata
-    save_metadata()
-    
-    # User input for the text prompt
-    prompt = input("Enter a prompt for image generation: ")
-    
-    # Generate image from the prompt
-    generate_image(prompt)
 
+if __name__ == "__main__":
+    if "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" in API_TOKEN:
+        print("[!] Please replace 'your_huggingface_api_token' with a valid Hugging Face API token.")
+        sys.exit(1)
+    
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n[*] Exiting the program.")

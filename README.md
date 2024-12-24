@@ -23,3 +23,8 @@ Before using the tool, ensure you have the following installed:
    ```bash
    sudo apt update && sudo apt upgrade -y
 
+    ```bash
+   pip3 install -r requirements.txt
+
+   python3 sd3-1.py
+

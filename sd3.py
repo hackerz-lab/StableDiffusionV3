@@ -75,7 +75,7 @@ def print_ascii_art():
 
 if __name__ == "__main__":
     if "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" in API_TOKEN:
-        print("[!] Please replace 'your_huggingface_api_token' with a valid Hugging Face API token.")
+        print("[!] Please replace 'API' with a valid Hugging Face API token.")
         sys.exit(1)
     
     try:
